@@ -23,5 +23,8 @@ RUN mkdir -p /workspace
 ENV HOME=/root
 ENV TERM=xterm-256color
 ENV OPENCLAUDE_WORKSPACE=/workspace
+ENV PORT=8080
 
-CMD ["bash", "-lc", "echo 'OpenClaude container ready. Use shell access to run start-openclaude inside /workspace.'; tail -f /dev/null"]
+EXPOSE 8080
+
+CMD ["node", "control-server.js"]
