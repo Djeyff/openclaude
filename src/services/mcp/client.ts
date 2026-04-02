@@ -560,6 +560,22 @@ function getRemoteMcpServerConnectionBatchSize(): number {
   )
 }
 
+type InProcessMcpServer = {
+  connect(t: Transport): Promise<void>
+  close(): Promise<void>
+}
+
+export async function cleanupFailedConnection(
+  transport: Pick<Transport, 'close'>,
+  inProcessServer?: Pick<InProcessMcpServer, 'close'>,
+): Promise<void> {
+  if (inProcessServer) {
+    await inProcessServer.close().catch(() => {})
+  }
+
+  await transport.close().catch(() => {})
+}
+
 function isLocalMcpServer(config: ScopedMcpServerConfig): boolean {
   return !config.type || config.type === 'stdio' || config.type === 'sdk'
 }
@@ -606,9 +622,7 @@ export const connectToServer = memoize(
     },
   ): Promise<MCPServerConnection> => {
     const connectStartTime = Date.now()
-    let inProcessServer:
-      | { connect(t: Transport): Promise<void>; close(): Promise<void> }
-      | undefined
+    let inProcessServer: InProcessMcpServer | undefined
     try {
       let transport
 
@@ -1145,9 +1159,10 @@ export const connectToServer = memoize(
           })
         }
         if (inProcessServer) {
-          inProcessServer.close().catch(() => { })
+          await cleanupFailedConnection(transport, inProcessServer)
+        } else {
+          await cleanupFailedConnection(transport)
         }
-        transport.close().catch(() => { })
         if (stderrOutput) {
           logMCPError(name, `Server stderr: ${stderrOutput}`)
         }
